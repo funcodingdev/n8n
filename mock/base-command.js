@@ -306,10 +306,11 @@ class BaseCommand {
                 licenseAny[key] = () => constants_1.UNLIMITED_LICENSE_QUOTA;
             });
             licenseAny.isAPIDisabled = () => false;
-            licenseAny.isAiAssistantEnabled = () => false;
+            licenseAny.isAiAssistantEnabled = () => true;
             licenseAny.getAiCredits = () => 999999;
             licenseAny.getPlanName = () => 'Enterprise';
             licenseAny.getConsumerId = () => 'enterprise-mock-consumer';
+            licenseAny.loadCertStr = () => 'mock-cert';
             licenseAny.getManagementJwt = () => 'mock-jwt-token';
             this.logger.info('[ENTERPRISE MOCK] ✅ All enterprise features enabled');
         }
