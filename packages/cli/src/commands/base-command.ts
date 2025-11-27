@@ -361,7 +361,6 @@ export abstract class BaseCommand<F = never> {
 				'isSourceControlLicensed',
 				'isVariablesEnabled',
 				'isExternalSecretsEnabled',
-				'isWorkflowHistoryLicensed',
 				'isLogStreamingEnabled',
 				'isMultiMainLicensed',
 				'isBinaryDataS3Licensed',
@@ -374,6 +373,10 @@ export abstract class BaseCommand<F = never> {
 				'isProjectRoleViewerLicensed',
 				'isCustomNpmRegistryEnabled',
 				'isWithinUsersLimit',
+				'isApiKeyScopesEnabled',
+				'isAskAiEnabled',
+				'isAdvancedExecutionFiltersEnabled',
+				'isAiAssistantEnabled',
 			].forEach((key) => {
 				licenseAny[key] = () => true;
 			});
@@ -389,7 +392,6 @@ export abstract class BaseCommand<F = never> {
 			});
 
 			licenseAny.isAPIDisabled = () => false;
-			licenseAny.isAiAssistantEnabled = () => true;
 			licenseAny.getAiCredits = () => 999999;
 			licenseAny.getPlanName = () => 'Enterprise';
 			licenseAny.getConsumerId = () => 'enterprise-mock-consumer';

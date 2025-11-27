@@ -280,7 +280,6 @@ class BaseCommand {
                 'isSourceControlLicensed',
                 'isVariablesEnabled',
                 'isExternalSecretsEnabled',
-                'isWorkflowHistoryLicensed',
                 'isLogStreamingEnabled',
                 'isMultiMainLicensed',
                 'isBinaryDataS3Licensed',
@@ -293,6 +292,10 @@ class BaseCommand {
                 'isProjectRoleViewerLicensed',
                 'isCustomNpmRegistryEnabled',
                 'isWithinUsersLimit',
+                'isApiKeyScopesEnabled',
+                'isAskAiEnabled',
+                'isAdvancedExecutionFiltersEnabled',
+                'isAiAssistantEnabled',
             ].forEach((key) => {
                 licenseAny[key] = () => true;
             });
@@ -306,7 +309,6 @@ class BaseCommand {
                 licenseAny[key] = () => constants_1.UNLIMITED_LICENSE_QUOTA;
             });
             licenseAny.isAPIDisabled = () => false;
-            licenseAny.isAiAssistantEnabled = () => true;
             licenseAny.getAiCredits = () => 999999;
             licenseAny.getPlanName = () => 'Enterprise';
             licenseAny.getConsumerId = () => 'enterprise-mock-consumer';

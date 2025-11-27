@@ -24,6 +24,11 @@ npx turbo run build --filter=n8n
 ## 4. 拷贝产物
 编译完成后，将生成的 `base-command.js` 拷贝到 `tmp` 目录供 Docker 使用。
 
+**Mac/Linux:**
+```bash
+cp packages/cli/dist/commands/base-command.js mock/base-command.js
+```
+
 **Windows (PowerShell):**
 ```powershell
 copy packages\cli\dist\commands\base-command.js mock\base-command.js
@@ -31,11 +36,22 @@ copy packages\cli\dist\commands\base-command.js mock\base-command.js
 
 ## 5. Docker添加挂载路径
 使用新的产物启动服务：
+**Mac/Linux:**
 ```bash
 docker volume create n8n_data
 docker run -it --rm --name n8n \
 	-p 5678:5678 \
 	-v n8n_data:/home/node/.n8n \
-	-v mock\base-command.js:/usr/local/lib/node_modules/n8n/dist/commands/base-command.js \
+	-v $(pwd)/mock/base-command.js:/usr/local/lib/node_modules/n8n/dist/commands/base-command.js \
+	docker.n8n.io/n8nio/n8n
+```
+
+**Windows (PowerShell):**
+```bash
+docker volume create n8n_data
+docker run -it --rm --name n8n \
+	-p 5678:5678 \
+	-v n8n_data:/home/node/.n8n \
+	-v ${PWD}\mock\base-command.js:/usr/local/lib/node_modules/n8n/dist/commands/base-command.js \
 	docker.n8n.io/n8nio/n8n
 ```
