@@ -249,7 +249,9 @@ export abstract class BaseCommand<F = never> {
 		this.license = Container.get(License);
 		await this.license.init();
 
-		this.initEnterpriseMock();
+		if (process.env.N8N_MOCK_ENTERPRISE === 'true') {
+			this.initEnterpriseMock();
+		}
 
 		Container.get(LicenseState).setLicenseProvider(this.license);
 

@@ -71,6 +71,21 @@ docker run -it --rm \
   my-registry.com/my-org/n8n:custom-v1
 ```
 
+## 5. 构建跨平台镜像 (例如 Linux/AMD64)
+
+如果你在 Mac (M1/M2/M3) 上开发，默认构建的是 `linux/arm64` 架构的镜像。如果你的服务器是普通的 Linux 服务器 (Intel/AMD CPU)，你需要指定目标平台为 `linux/amd64`。
+
+```bash
+# 指定目标平台为 linux/amd64
+export DOCKER_PLATFORM=linux/amd64
+export IMAGE_BASE_NAME=my-registry.com/my-org/n8n
+export IMAGE_TAG=custom-v1
+
+pnpm build:docker
+```
+
+> **注意**: 跨平台构建速度可能会比原生构建慢很多，因为需要使用 QEMU 模拟。
+
 ## 常见问题
 
 ### 构建过程中内存不足
@@ -82,3 +97,19 @@ pnpm build:docker
 
 ### 找不到 `compiled` 目录
 `build:docker` 脚本会自动调用 `build:n8n` 生成 `compiled` 目录。如果手动分步执行，请确保先运行 `pnpm build:n8n`。
+
+## 5. 清理构建产物
+
+构建过程会占用较多磁盘空间，包括 Docker 缓存和本地编译文件。构建完成后，可以通过以下方式清理：
+
+### 清理 Docker 缓存
+这会删除未使用的构建缓存，释放大量空间：
+```bash
+docker builder prune
+```
+
+### 清理本地编译文件
+构建生成的 `compiled` 目录在镜像构建完成后不再需要，可以手动删除：
+```bash
+rm -rf compiled
+```
