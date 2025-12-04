@@ -1,5 +1,6 @@
 import { Service } from '@n8n/di';
 import { DataSource, EntityManager, Repository } from '@n8n/typeorm';
+import { QueryDeepPartialEntity } from '@n8n/typeorm/query-builder/QueryPartialEntity';
 
 import { NotFoundError } from '@/errors/response-errors/not-found.error';
 
@@ -23,7 +24,11 @@ export class ChatHubSessionRepository extends Repository<ChatHubSession> {
 		});
 	}
 
-	async updateChatSession(id: string, updates: Partial<IChatHubSession>, trx?: EntityManager) {
+	async updateChatSession(
+		id: string,
+		updates: QueryDeepPartialEntity<IChatHubSession>,
+		trx?: EntityManager,
+	) {
 		const em = trx ?? this.manager;
 		await em.update(ChatHubSession, { id }, updates);
 	}

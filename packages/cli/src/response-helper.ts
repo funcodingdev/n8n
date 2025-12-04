@@ -2,7 +2,7 @@ import { inDevelopment, Logger } from '@n8n/backend-common';
 import { isUniqueConstraintError, type User } from '@n8n/db';
 import { Container } from '@n8n/di';
 import type { ReportingOptions } from '@n8n/errors';
-import type { Request, Response } from 'express';
+import type { RequestHandler, Response } from 'express';
 import { ErrorReporter } from 'n8n-core';
 import { ensureError, FORM_TRIGGER_PATH_IDENTIFIER, NodeApiError } from 'n8n-workflow';
 import { Readable } from 'node:stream';
@@ -109,18 +109,24 @@ export function reportError(error: Error, options?: ReportingOptions) {
  * @param {(req: Request, res: Response) => Promise<any>} processFunction The actual function to process the request
  */
 
-export function send<T, R extends Request, S extends Response>(
+type SendRequest = {
+	method: string;
+	path: string;
+	params?: Record<string, string>;
+};
+
+export function send<T, R extends SendRequest, S extends Response>(
 	processFunction: (req: R, res: S) => Promise<T>,
 	raw = false,
-) {
-	return async (req: R, res: S): Promise<void> => {
+): RequestHandler {
+	return async (req, res): Promise<void> => {
 		try {
-			const data = await processFunction(req, res);
+			const data = await processFunction(req as unknown as R, res as S);
 
 			if (!res.headersSent) sendSuccessResponse(res, data, raw);
 		} catch (e) {
 			const error = ensureError(e);
-			const user = (req as Request & { user?: User }).user;
+			const user = (req as { user?: User }).user;
 			reportError(error, {
 				extra: {
 					method: req.method,

@@ -228,7 +228,7 @@ function createLazyValidatorMiddleware(
 				const globalConfig = Container.get(GlobalConfig);
 				const router = express.Router();
 				router.use(
-					openApiValidatorMiddleware({
+					...(openApiValidatorMiddleware({
 						apiSpec: openApiSpecPath,
 						// Production/e2e use eov's default resolver (synchronous `require`). Under Vitest,
 						// where handler modules are `.ts` served by Vite, swap in an `import()`-based
@@ -272,7 +272,7 @@ function createLazyValidatorMiddleware(
 								BearerAuth: authenticate,
 							},
 						},
-					}),
+					}) as unknown as RequestHandler[]),
 				);
 				return router;
 			})();

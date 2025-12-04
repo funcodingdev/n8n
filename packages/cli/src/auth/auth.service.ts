@@ -5,7 +5,7 @@ import type { AuthenticatedRequest, User } from '@n8n/db';
 import { GLOBAL_OWNER_ROLE, InvalidAuthTokenRepository, UserRepository } from '@n8n/db';
 import { Service } from '@n8n/di';
 import { createHash } from 'crypto';
-import type { NextFunction, Request, Response } from 'express';
+import type { NextFunction, RequestHandler, Response } from 'express';
 import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 import type { StringValue as TimeUnitValue } from 'ms';
 
@@ -102,16 +102,17 @@ export class AuthService {
 		allowSkipMFA,
 		allowSkipPreviewAuth,
 		allowUnauthenticated,
-	}: CreateAuthMiddlewareOptions) {
-		return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-			const token = req.cookies[AUTH_COOKIE_NAME];
+	}: CreateAuthMiddlewareOptions): RequestHandler {
+		return async (req, res: Response, next: NextFunction) => {
+			const authenticatedReq = req as unknown as AuthenticatedRequest;
+			const token = authenticatedReq.cookies[AUTH_COOKIE_NAME];
 
 			if (token) {
 				try {
 					const isInvalid = await this.invalidAuthTokenRepository.existsBy({ token });
 					if (isInvalid) throw new AuthError('Unauthorized');
 
-					const [user, { usedMfa }] = await this.resolveJwt(token, req, res);
+					const [user, { usedMfa }] = await this.resolveJwt(token, authenticatedReq, res);
 					const mfaEnforced = await this.mfaService.isMFAEnforced();
 
 					if (mfaEnforced && !usedMfa && !allowSkipMFA) {
@@ -126,7 +127,7 @@ export class AuthService {
 								// Don't set req.user to avoid giving full access to semi-authenticated users
 								// Instead, set a flag in authInfo to indicate MFA enrollment is required
 								// This allows endpoints to handle this state appropriately (e.g., return public settings)
-								req.authInfo = {
+								authenticatedReq.authInfo = {
 									usedMfa,
 									mfaEnrollmentRequired: true,
 								};
@@ -139,8 +140,8 @@ export class AuthService {
 						}
 					}
 
-					req.user = user;
-					req.authInfo = {
+					authenticatedReq.user = user;
+					authenticatedReq.authInfo = {
 						usedMfa,
 					};
 				} catch (error) {
@@ -155,13 +156,17 @@ export class AuthService {
 			const isPreviewMode = process.env.N8N_PREVIEW_MODE === 'true';
 			const shouldSkipAuth = (allowSkipPreviewAuth && isPreviewMode) || allowUnauthenticated;
 
-			if (Object.hasOwn(req, 'user') && req.user) next();
+			if (Object.hasOwn(authenticatedReq, 'user') && authenticatedReq.user) next();
 			else if (shouldSkipAuth) next();
 			else res.status(401).json({ status: 'error', message: 'Unauthorized' });
 		};
 	}
 
-	getCookieToken(req: Request) {
+	getCookieToken(req: unknown) {
+		if (typeof req !== 'object' || req === null || !('cookies' in req)) {
+			return undefined;
+		}
+
 		// This models the behavior of an AuthenticatedRequest type having an optional cookies property of type Record<string, string>
 		if (typeof req.cookies === 'object' && req.cookies !== null) {
 			const cookies = req.cookies as Record<string, string | undefined>;
@@ -170,7 +175,11 @@ export class AuthService {
 		return undefined;
 	}
 
-	getBrowserId(req: Request) {
+	getBrowserId(req: unknown) {
+		if (typeof req !== 'object' || req === null) {
+			return undefined;
+		}
+
 		// This models the behavior of APIRequest type having an optional browserId property of type string
 		if ('browserId' in req && typeof req.browserId === 'string') {
 			return req.browserId;
@@ -178,12 +187,27 @@ export class AuthService {
 		return undefined;
 	}
 
-	getMethod(req: Request) {
-		return req.method;
+	getMethod(req: unknown) {
+		return typeof req === 'object' &&
+			req !== null &&
+			'method' in req &&
+			typeof req.method === 'string'
+			? req.method
+			: undefined;
 	}
 
-	getEndpoint(req: Request) {
-		return req.route ? `${req.baseUrl}${req.route.path}` : req.baseUrl;
+	getEndpoint(req: unknown) {
+		if (typeof req !== 'object' || req === null || !('baseUrl' in req)) {
+			return undefined;
+		}
+
+		const route =
+			'route' in req && typeof req.route === 'object' && req.route !== null ? req.route : undefined;
+		const routePath =
+			route && 'path' in route && typeof route.path === 'string' ? route.path : undefined;
+		const baseUrl = typeof req.baseUrl === 'string' ? req.baseUrl : '';
+
+		return typeof routePath === 'string' ? `${baseUrl}${routePath}` : baseUrl;
 	}
 
 	clearCookie(res: Response) {
@@ -367,8 +391,8 @@ export class AuthService {
 		const { user, jwtPayload } = await this.validateToken(token);
 
 		const browserId = this.getBrowserId(req);
-		const endpoint = this.getEndpoint(req);
-		const method = this.getMethod(req);
+		const endpoint = this.getEndpoint(req) ?? '';
+		const method = this.getMethod(req) ?? '';
 		this.validateBrowserId(jwtPayload, browserId, endpoint, method);
 
 		if (jwtPayload.exp * 1000 - Date.now() < this.jwtRefreshTimeout) {

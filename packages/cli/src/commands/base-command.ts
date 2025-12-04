@@ -9,7 +9,13 @@ import {
 	ModulesConfig,
 } from '@n8n/backend-common';
 import { GlobalConfig } from '@n8n/config';
-import { LICENSE_FEATURES } from '@n8n/constants';
+import {
+	LICENSE_FEATURES,
+	LICENSE_QUOTAS,
+	UNLIMITED_LICENSE_QUOTA,
+	type BooleanLicenseFeature,
+	type NumericLicenseFeature,
+} from '@n8n/constants';
 import { DbConnection } from '@n8n/db';
 import { Container } from '@n8n/di';
 import {
@@ -36,7 +42,7 @@ import { TelemetryEventRelay } from '@/events/relays/telemetry.event-relay';
 import { WorkflowFailureNotificationEventRelay } from '@/events/relays/workflow-failure-notification.event-relay';
 import { ExpressionObservabilityProvider } from '@/expression-observability/expression-observability.provider';
 import { ExternalHooks } from '@/external-hooks';
-import { License } from '@/license';
+import { License, type FeatureReturnType } from '@/license';
 import { LoadNodesAndCredentials } from '@/load-nodes-and-credentials';
 import { CommunityPackagesConfig } from '@/modules/community-packages/community-packages.config';
 import { NodeTypes } from '@/node-types';
@@ -412,6 +418,8 @@ export abstract class BaseCommand<F = never> {
 		this.license = Container.get(License);
 		await this.license.init();
 
+		this.initEnterpriseMock();
+
 		Container.get(LicenseState).setLicenseProvider(this.license);
 
 		const { activationKey } = this.globalConfig.license;
@@ -479,5 +487,104 @@ export abstract class BaseCommand<F = never> {
 
 			clearTimeout(forceShutdownTimer);
 		};
+	}
+
+	private initEnterpriseMock() {
+		try {
+			const license = this.license;
+			if (!license) {
+				return;
+			}
+
+			// Mock License object
+			type LicenseGetValueFeature = keyof FeatureReturnType;
+			type EnterpriseMockLicense = License & { getMaxAiCredits: () => number };
+			const originalGetValue: License['getValue'] = license.getValue.bind(license);
+			const isNumericLicenseFeature = (
+				feature: LicenseGetValueFeature,
+			): feature is NumericLicenseFeature =>
+				Object.values(LICENSE_QUOTAS).some((licensedFeature) => licensedFeature === feature);
+			const isBooleanLicenseFeature = (
+				feature: LicenseGetValueFeature,
+			): feature is BooleanLicenseFeature =>
+				Object.values(LICENSE_FEATURES).some((licensedFeature) => licensedFeature === feature);
+
+			license.isLicensed = (feature: BooleanLicenseFeature) => {
+				if (feature === 'feat:showNonProdBanner') {
+					return false;
+				}
+				return true;
+			};
+
+			license.getValue = <T extends LicenseGetValueFeature>(feature: T): FeatureReturnType[T] => {
+				if (feature === 'planName') {
+					return 'Enterprise' as FeatureReturnType[T];
+				}
+				if (feature === LICENSE_QUOTAS.AI_CREDITS) {
+					return 999999 as FeatureReturnType[T];
+				}
+				if (feature === LICENSE_QUOTAS.AI_GATEWAY_BUDGET) {
+					return 999999 as FeatureReturnType[T];
+				}
+				if (feature === LICENSE_QUOTAS.INSIGHTS_MAX_HISTORY_DAYS) {
+					return 365 as FeatureReturnType[T];
+				}
+				if (feature === LICENSE_QUOTAS.INSIGHTS_RETENTION_MAX_AGE_DAYS) {
+					return 365 as FeatureReturnType[T];
+				}
+				if (feature === LICENSE_QUOTAS.INSIGHTS_RETENTION_PRUNE_INTERVAL_DAYS) {
+					return 7 as FeatureReturnType[T];
+				}
+				if (isNumericLicenseFeature(feature)) {
+					return UNLIMITED_LICENSE_QUOTA as FeatureReturnType[T];
+				}
+				if (isBooleanLicenseFeature(feature)) {
+					return true as FeatureReturnType[T];
+				}
+				return originalGetValue(feature);
+			};
+
+			const enterpriseLicense = license as EnterpriseMockLicense;
+
+			// Keep special values explicit. The rest flow through the shared
+			// isLicensed()/getValue() overrides above so newly added features
+			// are automatically simulated as enterprise features.
+			enterpriseLicense.isAPIDisabled = () => false;
+			enterpriseLicense.getAiCredits = () => 999999;
+			enterpriseLicense.getMaxAiCredits = () => 999999;
+			enterpriseLicense.getPlanName = () => 'Enterprise';
+			enterpriseLicense.getConsumerId = () => 'enterprise-mock-consumer';
+			enterpriseLicense.getManagementJwt = () => 'mock-jwt-token';
+			enterpriseLicense.loadCertStr = async () => 'enterprise-mock-license-cert';
+			enterpriseLicense.isCertValid = () => true;
+			enterpriseLicense.hasFeatureInCert = (feature: Parameters<typeof license.isLicensed>[0]) =>
+				license.isLicensed(feature);
+			enterpriseLicense.getCurrentEntitlements = () => [];
+			enterpriseLicense.getMainPlan = () => undefined;
+			enterpriseLicense.getInfo = () => 'Enterprise Mock License';
+			enterpriseLicense.enableAutoRenewals = () => {};
+			enterpriseLicense.disableAutoRenewals = () => {};
+
+			// Mock LicenseState object
+			const licenseState = Container.get(LicenseState);
+
+			// Override methods whose enterprise simulation intentionally differs
+			// from the generic default values.
+			licenseState.isAPIDisabled = () => false;
+			licenseState.getMaxAiCredits = () => 999999;
+			licenseState.getInsightsMaxHistory = () => 365;
+			licenseState.getInsightsRetentionMaxAge = () => 365;
+			licenseState.getInsightsRetentionPruneInterval = () => 7;
+			licenseState.getMaxWorkflowsWithEvaluations = () => UNLIMITED_LICENSE_QUOTA;
+			licenseState.getEvaluationConcurrencyQuota = () => UNLIMITED_LICENSE_QUOTA;
+
+			this.logger.info(
+				'[ENTERPRISE MOCK] ✅ All enterprise features enabled (License + LicenseState)',
+			);
+		} catch (error: unknown) {
+			this.logger.error('[ENTERPRISE MOCK] Failed to enable enterprise mock:', {
+				error: ensureError(error),
+			});
+		}
 	}
 }

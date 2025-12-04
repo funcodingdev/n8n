@@ -213,7 +213,7 @@ export class OAuthServerService implements OAuthServerProvider {
 	async authorize(
 		client: OAuthClientInformationFull,
 		params: AuthorizationParams,
-		res: Response,
+		res: Parameters<OAuthServerProvider['authorize']>[2],
 	): Promise<void> {
 		this.logger.debug('Starting OAuth authorization', { clientId: client.client_id });
 
@@ -239,7 +239,7 @@ export class OAuthServerService implements OAuthServerProvider {
 				return;
 			}
 
-			this.oauthSessionService.createSession(res, {
+			this.oauthSessionService.createSession(res as unknown as Response, {
 				clientId: client.client_id,
 				redirectUri: params.redirectUri,
 				codeChallenge: params.codeChallenge,
@@ -255,7 +255,7 @@ export class OAuthServerService implements OAuthServerProvider {
 					resource: error.resource,
 					expectedResource: error.expectedResource,
 				});
-				this.oauthSessionService.clearSession(res);
+				this.oauthSessionService.clearSession(res as unknown as Response);
 				res.status(400).json({
 					error: 'invalid_target',
 					error_description: 'Invalid resource indicator',
@@ -264,7 +264,7 @@ export class OAuthServerService implements OAuthServerProvider {
 			}
 
 			this.logger.error('Error in authorize method', { error, clientId: client.client_id });
-			this.oauthSessionService.clearSession(res);
+			this.oauthSessionService.clearSession(res as unknown as Response);
 			res.status(500).json({ error: 'server_error', error_description: 'Internal server error' });
 		}
 	}
