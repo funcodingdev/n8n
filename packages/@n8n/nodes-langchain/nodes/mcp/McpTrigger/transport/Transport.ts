@@ -1,8 +1,10 @@
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
-import type { Response } from 'express';
 import type { IncomingMessage, ServerResponse } from 'http';
+import type { IWebhookFunctions } from 'n8n-workflow';
 
-export type CompressionResponse = Response & {
+type WebhookResponse = ReturnType<IWebhookFunctions['getResponseObject']>;
+
+export type CompressionResponse = WebhookResponse & {
 	flush?: () => void;
 };
 
