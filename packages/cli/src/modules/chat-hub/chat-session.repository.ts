@@ -1,6 +1,7 @@
 import { withTransaction } from '@n8n/db';
 import { Service } from '@n8n/di';
 import { DataSource, EntityManager, Repository } from '@n8n/typeorm';
+import { QueryDeepPartialEntity } from '@n8n/typeorm/query-builder/QueryPartialEntity';
 
 import { ChatHubSession, IChatHubSession } from './chat-hub-session.entity';
 
@@ -30,7 +31,11 @@ export class ChatHubSessionRepository extends Repository<ChatHubSession> {
 		);
 	}
 
-	async updateChatSession(id: string, updates: Partial<IChatHubSession>, trx?: EntityManager) {
+	async updateChatSession(
+		id: string,
+		updates: QueryDeepPartialEntity<IChatHubSession>,
+		trx?: EntityManager,
+	) {
 		return await withTransaction(
 			this.manager,
 			trx,
