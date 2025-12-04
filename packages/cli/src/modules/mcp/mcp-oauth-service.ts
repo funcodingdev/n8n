@@ -158,12 +158,12 @@ export class McpOAuthService implements OAuthServerProvider {
 	async authorize(
 		client: OAuthClientInformationFull,
 		params: AuthorizationParams,
-		res: Response,
+		res: Parameters<OAuthServerProvider['authorize']>[2],
 	): Promise<void> {
 		this.logger.debug('Starting OAuth authorization', { clientId: client.client_id });
 
 		try {
-			this.oauthSessionService.createSession(res, {
+			this.oauthSessionService.createSession(res as unknown as Response, {
 				clientId: client.client_id,
 				redirectUri: params.redirectUri,
 				codeChallenge: params.codeChallenge,
@@ -173,7 +173,7 @@ export class McpOAuthService implements OAuthServerProvider {
 			res.redirect('/oauth/consent');
 		} catch (error) {
 			this.logger.error('Error in authorize method', { error, clientId: client.client_id });
-			this.oauthSessionService.clearSession(res);
+			this.oauthSessionService.clearSession(res as unknown as Response);
 			res.status(500).json({ error: 'server_error', error_description: 'Internal server error' });
 		}
 	}

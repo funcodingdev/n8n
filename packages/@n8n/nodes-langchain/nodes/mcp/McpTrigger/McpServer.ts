@@ -8,9 +8,8 @@ import type {
 } from '@modelcontextprotocol/sdk/types.js';
 import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { randomUUID } from 'crypto';
-import type * as express from 'express';
 import type { IncomingMessage } from 'http';
-import type { Logger } from 'n8n-workflow';
+import type { IWebhookFunctions, Logger } from 'n8n-workflow';
 import { jsonParse, OperationalError } from 'n8n-workflow';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
@@ -45,6 +44,8 @@ interface PendingResponse {
 	createdAt: Date;
 }
 
+type WebhookRequest = ReturnType<IWebhookFunctions['getRequestObject']>;
+
 export class McpServer {
 	private static instance_: McpServer;
 
@@ -74,7 +75,7 @@ export class McpServer {
 	}
 
 	async handleSetupRequest(
-		_req: express.Request,
+		_req: WebhookRequest,
 		resp: CompressionResponse,
 		serverName: string,
 		postUrl: string,
@@ -87,7 +88,7 @@ export class McpServer {
 	}
 
 	async handleStreamableHttpSetup(
-		req: express.Request,
+		req: WebhookRequest,
 		resp: CompressionResponse,
 		serverName: string,
 		tools: Tool[],
@@ -115,7 +116,7 @@ export class McpServer {
 	}
 
 	async handlePostMessage(
-		req: express.Request,
+		req: WebhookRequest,
 		resp: CompressionResponse,
 		tools: Tool[],
 		serverName?: string,
@@ -203,7 +204,7 @@ export class McpServer {
 		};
 	}
 
-	async handleDeleteRequest(req: express.Request, resp: CompressionResponse): Promise<void> {
+	async handleDeleteRequest(req: WebhookRequest, resp: CompressionResponse): Promise<void> {
 		const sessionId = this.getSessionId(req);
 
 		if (!sessionId) {
@@ -227,11 +228,11 @@ export class McpServer {
 		resp.status(404).send('Session not found');
 	}
 
-	getSessionId(req: express.Request): string | undefined {
+	getSessionId(req: WebhookRequest): string | undefined {
 		return (req.query.sessionId ?? req.headers['mcp-session-id']) as string | undefined;
 	}
 
-	getMcpMetadata(req: express.Request): { sessionId: string; messageId: string } | undefined {
+	getMcpMetadata(req: WebhookRequest): { sessionId: string; messageId: string } | undefined {
 		const sessionId = this.getSessionId(req);
 		if (!sessionId) return undefined;
 

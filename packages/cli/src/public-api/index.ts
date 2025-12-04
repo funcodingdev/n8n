@@ -75,32 +75,34 @@ function createLazyValidatorMiddleware(
 					'express-openapi-validator'
 				);
 
-				const authenticate = async (req: AuthenticatedRequest) => {
-					const authenticated = await Container.get(AuthStrategyRegistry).authenticate(req);
+				const authenticate: RequestHandler = async (req, _res, next) => {
+					const authenticatedReq = req as unknown as AuthenticatedRequest;
+					const authenticated =
+						await Container.get(AuthStrategyRegistry).authenticate(authenticatedReq);
 
 					if (authenticated) {
 						Container.get(LastActiveAtService)
-							.updateLastActiveIfStale(req.user.id)
+							.updateLastActiveIfStale(authenticatedReq.user.id)
 							.catch((error: unknown) => {
 								Container.get(Logger).error('Failed to update last active timestamp', {
 									error,
 								});
 							});
 						Container.get(EventService).emit('public-api-invoked', {
-							userId: req.user.id,
-							path: req.path,
-							method: req.method,
+							userId: authenticatedReq.user.id,
+							path: authenticatedReq.path,
+							method: authenticatedReq.method,
 							apiVersion: version,
-							userAgent: req.headers['user-agent'],
+							userAgent: authenticatedReq.headers['user-agent'],
 						});
 					}
-
-					return authenticated;
+					res.locals.openApiSecurityHandled = authenticated;
+					next();
 				};
 
 				const router = express.Router();
 				router.use(
-					openApiValidatorMiddleware({
+					...(openApiValidatorMiddleware({
 						apiSpec: openApiSpecPath,
 						operationHandlers: handlersDirectory,
 						validateRequests: true,
@@ -134,11 +136,17 @@ function createLazyValidatorMiddleware(
 						},
 						validateSecurity: {
 							handlers: {
-								ApiKeyAuth: authenticate,
-								BearerAuth: authenticate,
+								ApiKeyAuth: async (req) =>
+									await Container.get(AuthStrategyRegistry).authenticate(
+										req as unknown as AuthenticatedRequest,
+									),
+								BearerAuth: async (req) =>
+									await Container.get(AuthStrategyRegistry).authenticate(
+										req as unknown as AuthenticatedRequest,
+									),
 							},
 						},
-					}),
+					}) as unknown as RequestHandler[]),
 				);
 				return router;
 			})();

@@ -192,8 +192,8 @@ export class Server extends AbstractServer {
 		}
 
 		// Extract BrowserId from headers
-		this.app.use((req: APIRequest, _, next) => {
-			req.browserId = req.headers['browser-id'] as string;
+		this.app.use((req, _, next) => {
+			(req as unknown as APIRequest).browserId = req.headers['browser-id'] as string;
 			next();
 		});
 

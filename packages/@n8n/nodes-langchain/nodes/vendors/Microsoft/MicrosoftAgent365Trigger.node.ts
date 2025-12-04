@@ -17,6 +17,13 @@ import {
 	microsoftMcpServers,
 } from './microsoft-utils';
 
+type MicrosoftAdapterRequest = Parameters<
+	ReturnType<typeof createMicrosoftAgentApplication>['adapter']['process']
+>[0];
+type MicrosoftAdapterResponse = Parameters<
+	ReturnType<typeof createMicrosoftAgentApplication>['adapter']['process']
+>[1];
+
 export class MicrosoftAgent365Trigger implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Microsoft Agent 365 Trigger',
@@ -233,7 +240,11 @@ export class MicrosoftAgent365Trigger implements INodeType {
 				azp: credentials.clientId,
 			};
 
-			await agent.adapter.process(req, res, callback);
+			await agent.adapter.process(
+				req as unknown as MicrosoftAdapterRequest,
+				res as unknown as MicrosoftAdapterResponse,
+				callback,
+			);
 
 			if (
 				activityCapture.activity.type === 'event' ||

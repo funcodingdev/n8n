@@ -7,6 +7,7 @@ import { GlobalConfig } from '@n8n/config';
 import { Time } from '@n8n/constants';
 import { Get, Options, RootLevelController, StaticRouterMetadata } from '@n8n/decorators';
 import { Container } from '@n8n/di';
+import express from 'express';
 import type { Response, Request, RequestHandler, Router } from 'express';
 
 import { UrlService } from '@/services/url.service';
@@ -20,6 +21,12 @@ const mcpOAuthService = Container.get(McpOAuthService);
 const mcpSettingsService = Container.get(McpSettingsService);
 const globalConfig = Container.get(GlobalConfig);
 const logger = Container.get(Logger);
+
+function routerFromHandler(handler: unknown): Router {
+	const router = express.Router();
+	router.use(handler as unknown as Parameters<Router['use']>[0]);
+	return router;
+}
 
 /**
  * Middleware that rejects requests when MCP access is disabled.
@@ -76,28 +83,46 @@ export class McpOAuthController {
 	static routers: StaticRouterMetadata[] = [
 		{
 			path: '/mcp-oauth/register',
-			router: clientRegistrationHandler({ clientsStore: mcpOAuthService.clientsStore }) as Router,
+			router: routerFromHandler(
+				clientRegistrationHandler({ clientsStore: mcpOAuthService.clientsStore }),
+			),
 			skipAuth: true,
 			middlewares: [mcpEnabledGuard, mcpClientLimitGuard],
 			ipRateLimit: { limit: 10, windowMs: 5 * Time.minutes.toMilliseconds },
 		},
 		{
 			path: '/mcp-oauth/authorize',
-			router: authorizationHandler({ provider: mcpOAuthService }) as Router,
+			router: routerFromHandler(
+				authorizationHandler({
+					provider: mcpOAuthService as unknown as Parameters<
+						typeof authorizationHandler
+					>[0]['provider'],
+				}),
+			),
 			skipAuth: true,
 			middlewares: [mcpEnabledGuard],
 			ipRateLimit: { limit: 50, windowMs: 5 * Time.minutes.toMilliseconds },
 		},
 		{
 			path: '/mcp-oauth/token',
-			router: tokenHandler({ provider: mcpOAuthService }) as Router,
+			router: routerFromHandler(
+				tokenHandler({
+					provider: mcpOAuthService as unknown as Parameters<typeof tokenHandler>[0]['provider'],
+				}),
+			),
 			skipAuth: true,
 			middlewares: [mcpEnabledGuard],
 			ipRateLimit: { limit: 20, windowMs: 5 * Time.minutes.toMilliseconds },
 		},
 		{
 			path: '/mcp-oauth/revoke',
-			router: revocationHandler({ provider: mcpOAuthService }) as Router,
+			router: routerFromHandler(
+				revocationHandler({
+					provider: mcpOAuthService as unknown as Parameters<
+						typeof revocationHandler
+					>[0]['provider'],
+				}),
+			),
 			skipAuth: true,
 			middlewares: [mcpEnabledGuard],
 			ipRateLimit: { limit: 30, windowMs: 5 * Time.minutes.toMilliseconds },

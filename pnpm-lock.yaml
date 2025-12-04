@@ -1392,6 +1392,9 @@ importers:
       '@n8n/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
+      '@types/express':
+        specifier: 'catalog:'
+        version: 5.0.1
       '@types/lodash':
         specifier: 'catalog:'
         version: 4.17.17

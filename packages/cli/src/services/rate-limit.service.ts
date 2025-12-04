@@ -14,6 +14,12 @@ const defaultLimits: Required<RateLimiterLimits> = {
 	windowMs: 5 * Time.minutes.toMilliseconds,
 };
 
+type RequestWithUser = Request & {
+	user?: {
+		id?: string;
+	};
+};
+
 /**
  * Service for creating rate limiters for endpoints. We use a 2 layered approach
  * to rate limiting for better balance between security and usability. This helps
@@ -35,7 +41,7 @@ export class RateLimitService {
 			limit: rateLimit.limit ?? defaultLimits.limit,
 			windowMs: rateLimit.windowMs ?? defaultLimits.windowMs,
 			message: { message: 'Too many requests' },
-		});
+		}) as unknown as RequestHandler;
 	}
 
 	/**
@@ -53,25 +59,24 @@ export class RateLimitService {
 		return expressRateLimit({
 			limit: config.limit ?? defaultLimits.limit,
 			windowMs: config.windowMs ?? defaultLimits.windowMs,
-			keyGenerator: (req: Request) =>
-				this.extractBodyIdentifier(req.body, fieldName, bodyFieldSchema),
-			skip: (req: Request) => {
+			keyGenerator: (req) => this.extractBodyIdentifier(req.body, fieldName, bodyFieldSchema),
+			skip: (req) => {
 				const identifier = this.extractBodyIdentifier(req.body, fieldName, bodyFieldSchema);
 				return identifier.startsWith('skip:');
 			},
-		});
+		}) as unknown as RequestHandler;
 	}
 
 	createUserKeyedRateLimitMiddleware(config: UserKeyedRateLimiterConfig): RequestHandler {
 		return expressRateLimit({
 			limit: config.limit ?? defaultLimits.limit,
 			windowMs: config.windowMs ?? defaultLimits.windowMs,
-			keyGenerator: (req: AuthenticatedRequest) => this.extractUserIdentifier(req),
-			skip: (req: AuthenticatedRequest) => {
-				const identifier = this.extractUserIdentifier(req);
+			keyGenerator: (req) => this.extractUserIdentifier(req as unknown as RequestWithUser),
+			skip: (req) => {
+				const identifier = this.extractUserIdentifier(req as unknown as RequestWithUser);
 				return identifier.startsWith('skip:');
 			},
-		});
+		}) as unknown as RequestHandler;
 	}
 
 	private extractBodyIdentifier(body: unknown, fieldName: string, fieldSchema: ZodTypeAny): string {
@@ -92,7 +97,11 @@ export class RateLimitService {
 		return `body:${value}`;
 	}
 
-	private extractUserIdentifier(req: AuthenticatedRequest): string {
+	private extractUserIdentifier(req: RequestWithUser): string {
+		if (!req.user?.id) {
+			return 'skip:missing-user';
+		}
+
 		return `user:${req.user.id}`;
 	}
 }
