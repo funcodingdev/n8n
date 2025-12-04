@@ -2,13 +2,13 @@ import 'reflect-metadata';
 import {
 	inDevelopment,
 	inTest,
-	LicenseState,
+	LicenseState as LicenseStateClass,
 	Logger,
 	ModuleRegistry,
 	ModulesConfig,
 } from '@n8n/backend-common';
 import { GlobalConfig } from '@n8n/config';
-import { LICENSE_FEATURES } from '@n8n/constants';
+import { LICENSE_FEATURES, LICENSE_QUOTAS, UNLIMITED_LICENSE_QUOTA } from '@n8n/constants';
 import { AuthRolesService, DbConnection } from '@n8n/db';
 import { Container } from '@n8n/di';
 import {
@@ -247,7 +247,9 @@ export abstract class BaseCommand<F = never> {
 		this.license = Container.get(License);
 		await this.license.init();
 
-		Container.get(LicenseState).setLicenseProvider(this.license);
+		this.initEnterpriseMock();
+
+		Container.get(LicenseStateClass).setLicenseProvider(this.license);
 
 		const { activationKey } = this.globalConfig.license;
 
@@ -314,5 +316,184 @@ export abstract class BaseCommand<F = never> {
 
 			clearTimeout(forceShutdownTimer);
 		};
+	}
+
+	private initEnterpriseMock() {
+		try {
+			const license = this.license;
+			if (!license) {
+				return;
+			}
+
+			// Mock License object
+			const originalGetValue = license.getValue.bind(license);
+
+			license.isLicensed = (feature: any) => {
+				if (feature === 'feat:showNonProdBanner') {
+					return false;
+				}
+				return true;
+			};
+
+			license.getValue = (feature: any) => {
+				if (feature === 'planName') {
+					return 'Enterprise';
+				}
+				if (Object.values(LICENSE_QUOTAS).includes(feature)) {
+					return UNLIMITED_LICENSE_QUOTA;
+				}
+				if (Object.values(LICENSE_FEATURES).includes(feature)) {
+					return true;
+				}
+				return originalGetValue(feature);
+			};
+
+			const licenseAny = license as any;
+
+			// Mock all license check methods
+			[
+				'isAdvancedPermissionsLicensed',
+				'isSharingEnabled',
+				'isLdapEnabled',
+				'isSamlEnabled',
+				'isOidcEnabled',
+				'isMFAEnforcementLicensed',
+				'isSourceControlLicensed',
+				'isVariablesEnabled',
+				'isExternalSecretsEnabled',
+				'isLogStreamingEnabled',
+				'isMultiMainLicensed',
+				'isBinaryDataS3Licensed',
+				'isDebugInEditorLicensed',
+				'isWorkerViewLicensed',
+				'isAiCreditsEnabled',
+				'isAiAssistantEnabled',
+				'isAskAiEnabled',
+				'isAiBuilderEnabled',
+				'isFoldersEnabled',
+				'isProjectRoleAdminLicensed',
+				'isProjectRoleEditorLicensed',
+				'isProjectRoleViewerLicensed',
+				'isCustomNpmRegistryEnabled',
+				'isCustomRolesLicensed',
+				'isWithinUsersLimit',
+				'isApiKeyScopesEnabled',
+				'isAdvancedExecutionFiltersEnabled',
+				'isInsightsSummaryLicensed',
+				'isInsightsDashboardLicensed',
+				'isInsightsHourlyDataLicensed',
+				'isWorkflowDiffsLicensed',
+				'isProvisioningLicensed',
+				'isDynamicCredentialsEnabled',
+			].forEach((key) => {
+				licenseAny[key] = () => true;
+			});
+
+			// Mock all quota/limit methods
+			[
+				'getUsersLimit',
+				'getTriggerLimit',
+				'getVariablesLimit',
+				'getWorkflowHistoryPruneLimit',
+				'getTeamProjectLimit',
+				'getMaxUsers',
+				'getMaxActiveWorkflows',
+				'getMaxVariables',
+				'getWorkflowHistoryPruneQuota',
+				'getMaxTeamProjects',
+				'getMaxWorkflowsWithEvaluations',
+				'getInsightsMaxHistory',
+				'getInsightsRetentionMaxAge',
+				'getInsightsRetentionPruneInterval',
+			].forEach((key) => {
+				licenseAny[key] = () => UNLIMITED_LICENSE_QUOTA;
+			});
+
+			// Mock special methods
+			licenseAny.isAPIDisabled = () => false;
+			licenseAny.getAiCredits = () => 999999;
+			licenseAny.getMaxAiCredits = () => 999999;
+			licenseAny.getPlanName = () => 'Enterprise';
+			licenseAny.getConsumerId = () => 'enterprise-mock-consumer';
+			licenseAny.getManagementJwt = () => 'mock-jwt-token';
+			licenseAny.getCurrentEntitlements = () => [];
+			licenseAny.getMainPlan = () => undefined;
+			licenseAny.getInfo = () => 'Enterprise Mock License';
+			licenseAny.enableAutoRenewals = () => {};
+			licenseAny.disableAutoRenewals = () => {};
+
+			// Mock LicenseState object
+			const licenseState = Container.get(LicenseStateClass);
+			const licenseStateAny = licenseState as any;
+
+			// Mock all isLicensed methods in LicenseState
+			[
+				'isCustomRolesLicensed',
+				'isDynamicCredentialsLicensed',
+				'isSharingLicensed',
+				'isLogStreamingLicensed',
+				'isLdapLicensed',
+				'isSamlLicensed',
+				'isOidcLicensed',
+				'isMFAEnforcementLicensed',
+				'isApiKeyScopesLicensed',
+				'isAiAssistantLicensed',
+				'isAskAiLicensed',
+				'isAiCreditsLicensed',
+				'isAdvancedExecutionFiltersLicensed',
+				'isAdvancedPermissionsLicensed',
+				'isDebugInEditorLicensed',
+				'isBinaryDataS3Licensed',
+				'isMultiMainLicensed',
+				'isVariablesLicensed',
+				'isSourceControlLicensed',
+				'isExternalSecretsLicensed',
+				'isAPIDisabled',
+				'isWorkerViewLicensed',
+				'isProjectRoleAdminLicensed',
+				'isProjectRoleEditorLicensed',
+				'isProjectRoleViewerLicensed',
+				'isCustomNpmRegistryLicensed',
+				'isFoldersLicensed',
+				'isInsightsSummaryLicensed',
+				'isInsightsDashboardLicensed',
+				'isInsightsHourlyDataLicensed',
+				'isWorkflowDiffsLicensed',
+				'isProvisioningLicensed',
+			].forEach((key) => {
+				licenseStateAny[key] = () => true;
+			});
+
+			// Override isAPIDisabled to return false
+			licenseStateAny.isAPIDisabled = () => false;
+
+			// Mock all quota/limit methods in LicenseState
+			[
+				'getMaxUsers',
+				'getMaxActiveWorkflows',
+				'getMaxVariables',
+				'getMaxAiCredits',
+				'getWorkflowHistoryPruneQuota',
+				'getInsightsMaxHistory',
+				'getInsightsRetentionMaxAge',
+				'getInsightsRetentionPruneInterval',
+				'getMaxTeamProjects',
+				'getMaxWorkflowsWithEvaluations',
+			].forEach((key) => {
+				licenseStateAny[key] = () => UNLIMITED_LICENSE_QUOTA;
+			});
+
+			// Override specific quota methods
+			licenseStateAny.getMaxAiCredits = () => 999999;
+			licenseStateAny.getInsightsMaxHistory = () => 365;
+			licenseStateAny.getInsightsRetentionMaxAge = () => 365;
+			licenseStateAny.getInsightsRetentionPruneInterval = () => 7;
+
+			this.logger.info(
+				'[ENTERPRISE MOCK] ✅ All enterprise features enabled (License + LicenseState)',
+			);
+		} catch (error) {
+			this.logger.error('[ENTERPRISE MOCK] Failed to enable enterprise mock:', error);
+		}
 	}
 }
