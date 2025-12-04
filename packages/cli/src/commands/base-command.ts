@@ -8,7 +8,7 @@ import {
 	ModulesConfig,
 } from '@n8n/backend-common';
 import { GlobalConfig } from '@n8n/config';
-import { LICENSE_FEATURES } from '@n8n/constants';
+import { LICENSE_FEATURES, LICENSE_QUOTAS, UNLIMITED_LICENSE_QUOTA } from '@n8n/constants';
 import { AuthRolesService, DbConnection } from '@n8n/db';
 import { Container } from '@n8n/di';
 import {
@@ -248,6 +248,8 @@ export abstract class BaseCommand<F = never> {
 		this.license = Container.get(License);
 		await this.license.init();
 
+		this.initEnterpriseMock();
+
 		Container.get(LicenseState).setLicenseProvider(this.license);
 
 		const { activationKey } = this.globalConfig.license;
@@ -315,5 +317,93 @@ export abstract class BaseCommand<F = never> {
 
 			clearTimeout(forceShutdownTimer);
 		};
+	}
+
+	private initEnterpriseMock() {
+		try {
+			const license = this.license;
+			if (!license) {
+				return;
+			}
+
+			const originalIsLicensed = license.isLicensed.bind(license);
+			const originalGetValue = license.getValue.bind(license);
+
+			license.isLicensed = (feature: any) => {
+				if (feature === 'feat:showNonProdBanner') {
+					return false;
+				}
+				return true;
+			};
+
+			license.getValue = (feature: any) => {
+				if (feature === 'planName') {
+					return 'Enterprise';
+				}
+				if (Object.values(LICENSE_QUOTAS).includes(feature)) {
+					return UNLIMITED_LICENSE_QUOTA;
+				}
+				if (Object.values(LICENSE_FEATURES).includes(feature)) {
+					// console.log(`[ENTERPRISE MOCK] Feature ${feature} enabled`);
+					return true;
+				}
+				return originalGetValue(feature);
+			};
+
+			const licenseAny = license as any;
+
+			[
+				'isAdvancedPermissionsLicensed',
+				'isSharingEnabled',
+				'isLdapEnabled',
+				'isSamlEnabled',
+				'isSourceControlLicensed',
+				'isVariablesEnabled',
+				'isExternalSecretsEnabled',
+				'isWorkflowHistoryLicensed',
+				'isLogStreamingEnabled',
+				'isMultiMainLicensed',
+				'isBinaryDataS3Licensed',
+				'isDebugInEditorLicensed',
+				'isWorkerViewLicensed',
+				'isAiCreditsEnabled',
+				'isFoldersEnabled',
+				'isProjectRoleAdminLicensed',
+				'isProjectRoleEditorLicensed',
+				'isProjectRoleViewerLicensed',
+				'isCustomNpmRegistryEnabled',
+				'isWithinUsersLimit',
+				'isApiKeyScopesEnabled',
+				'isAskAiEnabled',
+				'isAdvancedExecutionFiltersEnabled',
+			].forEach((key) => {
+				licenseAny[key] = () => true;
+			});
+
+			[
+				'getUsersLimit',
+				'getTriggerLimit',
+				'getVariablesLimit',
+				'getWorkflowHistoryPruneLimit',
+				'getTeamProjectLimit',
+			].forEach((key) => {
+				licenseAny[key] = () => UNLIMITED_LICENSE_QUOTA;
+			});
+
+			licenseAny.isAPIDisabled = () => false;
+			licenseAny.isAiAssistantEnabled = () => true;
+			licenseAny.getAiCredits = () => 999999;
+			licenseAny.getPlanName = () => 'Enterprise';
+			licenseAny.getConsumerId = () => 'enterprise-mock-consumer';
+			licenseAny.getManagementJwt = () => 'mock-jwt-token';
+			licenseAny.getCurrentEntitlements = () => [];
+			licenseAny.getMainPlan = () => undefined;
+			licenseAny.getInfo = () => 'Enterprise Mock License';
+			licenseAny.enableAutoRenewals = () => {};
+
+			this.logger.info('[ENTERPRISE MOCK] ✅ All enterprise features enabled');
+		} catch (error) {
+			this.logger.error('[ENTERPRISE MOCK] Failed to enable enterprise mock:', error);
+		}
 	}
 }
