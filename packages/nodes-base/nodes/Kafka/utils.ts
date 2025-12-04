@@ -7,7 +7,6 @@ import type {
 	ConsumerConfig,
 } from 'kafkajs';
 import { logLevel } from 'kafkajs';
-import { SchemaRegistry } from '@kafkajs/confluent-schema-registry';
 import { formatPemBlock } from '@n8n/utils/format-pem-block';
 import type {
 	Logger,
@@ -26,6 +25,8 @@ import { jsonParse, NodeOperationError, UserError } from 'n8n-workflow';
 import http from 'node:http';
 import https from 'node:https';
 import type { ConnectionOptions } from 'node:tls';
+
+import type { SchemaRegistry as SchemaRegistryClient } from '@kafkajs/confluent-schema-registry';
 
 // Default delay in milliseconds before retrying after a failed offset resolution.
 // This prevents rapid retry loops that could overwhelm the Kafka broker
@@ -242,7 +243,7 @@ export function createConsumerConfig(
 export function configureMessageParser(
 	options: KafkaTriggerOptions,
 	logger: Logger,
-	registry: SchemaRegistry | undefined,
+	registry: SchemaRegistryClient | undefined,
 	prepareBinaryData: ITriggerFunctions['helpers']['prepareBinaryData'],
 ) {
 	return async (message: KafkaMessage, messageTopic: string): Promise<INodeExecutionData> => {
@@ -487,8 +488,9 @@ export async function createSchemaRegistry(
 		helpers: Pick<RequestHelperFunctions, 'getSecureEgressFilter'>;
 	},
 	fallbackUrl: string,
-): Promise<SchemaRegistry> {
+): Promise<SchemaRegistryClient> {
 	const options = await getSchemaRegistryOptions(ctx, fallbackUrl);
+	const { SchemaRegistry } = await import('@kafkajs/confluent-schema-registry');
 
 	const filter = ctx.helpers.getSecureEgressFilter();
 	if (!filter) {

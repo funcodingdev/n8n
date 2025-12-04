@@ -42,8 +42,8 @@ export function extractAuthenticationMetadata(
 	return {
 		authToken,
 		browserId: authService.getBrowserId(req),
-		method: authService.getMethod(req),
-		endpoint: authService.getEndpoint(req),
+		method: authService.getMethod(req) ?? '',
+		endpoint: authService.getEndpoint(req) ?? '',
 	};
 }
 

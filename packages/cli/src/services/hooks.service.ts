@@ -15,7 +15,7 @@ import { Service } from '@n8n/di';
 import type { FindManyOptions, FindOneOptions, FindOptionsWhere } from '@n8n/typeorm';
 import type { QueryDeepPartialEntity } from '@n8n/typeorm/query-builder/QueryPartialEntity';
 import RudderStack, { type constructorOptions } from '@rudderstack/rudder-sdk-node';
-import type { NextFunction, Response } from 'express';
+import type { NextFunction, RequestHandler, Response } from 'express';
 
 import { AuthService } from '@/auth/auth.service';
 import type { Invitation } from '@/interfaces';
@@ -27,11 +27,7 @@ import { UserService } from '@/services/user.service';
  */
 @Service()
 export class HooksService {
-	private innerAuthMiddleware: (
-		req: AuthenticatedRequest,
-		res: Response,
-		next: NextFunction,
-	) => Promise<void>;
+	private innerAuthMiddleware: RequestHandler;
 
 	constructor(
 		private readonly userService: UserService,
@@ -115,7 +111,11 @@ export class HooksService {
 	 * 1. To authenticate the /proxy routes in the hooks
 	 */
 	async authMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-		return await this.innerAuthMiddleware(req, res, next);
+		return await this.innerAuthMiddleware(
+			req as unknown as Parameters<RequestHandler>[0],
+			res,
+			next,
+		);
 	}
 
 	getRudderStackClient(key: string, options: constructorOptions): RudderStack {

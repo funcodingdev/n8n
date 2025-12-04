@@ -189,8 +189,13 @@ export class TaskBrokerServer {
 				windowMs: 1000,
 				limit: 5,
 				message: { message: 'Too many requests' },
-			}),
-			send(async (req) => await this.authController.createGrantToken(req)),
+			}) as unknown as Parameters<typeof this.app.post>[1],
+			send(
+				async (req) =>
+					await this.authController.createGrantToken(
+						req as unknown as Parameters<typeof this.authController.createGrantToken>[0],
+					),
+			),
 		);
 
 		// The task broker is an internal server (not publicly accessible) used
