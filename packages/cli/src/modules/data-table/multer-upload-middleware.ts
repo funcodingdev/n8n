@@ -102,7 +102,7 @@ export class MulterUploadMiddleware implements UploadMiddleware {
 		return (req, res, next) => {
 			void this.upload.single(fieldName)(req, res, (error) => {
 				if (error) {
-					(req as AuthenticatedRequestWithFile).fileUploadError = error;
+					(req as unknown as AuthenticatedRequestWithFile).fileUploadError = error;
 				}
 				next();
 			});

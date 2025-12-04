@@ -116,7 +116,10 @@ export class SamlController {
 		payload: SamlAcsDto = {},
 	) {
 		try {
-			const loginResult = await this.samlService.handleSamlLogin(req, binding);
+			const loginResult = await this.samlService.handleSamlLogin(
+				req as unknown as Parameters<typeof this.samlService.handleSamlLogin>[0],
+				binding,
+			);
 			// if RelayState is set to the test connection Url, this is a test connection
 			if (isConnectionTestRequest(payload)) {
 				if (loginResult.authenticatedUser) {

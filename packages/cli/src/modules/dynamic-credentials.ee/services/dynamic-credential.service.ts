@@ -2,7 +2,7 @@ import { Logger } from '@n8n/backend-common';
 import { AuthenticatedRequest } from '@n8n/db';
 import { CredentialResolverError } from '@n8n/decorators';
 import { Service } from '@n8n/di';
-import { NextFunction, Response } from 'express';
+import { NextFunction, Response, type RequestHandler } from 'express';
 import { Cipher } from 'n8n-core';
 import type {
 	ICredentialDataDecryptedObject,
@@ -248,12 +248,13 @@ export class DynamicCredentialService implements ICredentialResolutionProvider {
 	 * Returns middleware for authenticating dynamic credentials endpoints.
 	 * Uses static token from configuration.
 	 */
-	getDynamicCredentialsEndpointsMiddleware() {
+	getDynamicCredentialsEndpointsMiddleware(): RequestHandler {
 		const { endpointAuthToken } = this.dynamicCredentialConfig;
 		if (!endpointAuthToken?.trim()) {
-			return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+			return ((req, res: Response, next: NextFunction) => {
+				const authenticatedReq = req as unknown as AuthenticatedRequest;
 				// If a user was authenticated for this request, we allow access irrelevant of the static authentication
-				if (req.user) {
+				if (authenticatedReq.user) {
 					return next();
 				}
 				this.logger.error(
@@ -263,7 +264,7 @@ export class DynamicCredentialService implements ICredentialResolutionProvider {
 					message: 'Dynamic credentials configuration is invalid. Check server logs for details.',
 				});
 				return;
-			};
+			}) as RequestHandler;
 		}
 
 		const staticAuthMiddlware = StaticAuthService.getStaticAuthMiddleware(
@@ -271,12 +272,17 @@ export class DynamicCredentialService implements ICredentialResolutionProvider {
 			'x-authorization',
 		)!;
 
-		return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+		return ((req, res: Response, next: NextFunction) => {
+			const authenticatedReq = req as unknown as AuthenticatedRequest;
 			// If a user was authenticated for this request, we allow access irrelevant of the static authentication
-			if (req.user) {
+			if (authenticatedReq.user) {
 				return next();
 			}
-			return staticAuthMiddlware(req, res, next);
-		};
+			return staticAuthMiddlware(
+				authenticatedReq as unknown as Parameters<typeof staticAuthMiddlware>[0],
+				res,
+				next,
+			);
+		}) as RequestHandler;
 	}
 }

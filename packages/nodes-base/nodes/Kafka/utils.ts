@@ -7,7 +7,6 @@ import type {
 	ConsumerConfig,
 } from 'kafkajs';
 import { logLevel } from 'kafkajs';
-import { SchemaRegistry } from '@kafkajs/confluent-schema-registry';
 import type {
 	Logger,
 	ITriggerFunctions,
@@ -19,9 +18,17 @@ import type {
 
 import { ensureError, jsonParse, NodeOperationError, sleep } from 'n8n-workflow';
 
+type SchemaRegistry = Awaited<ReturnType<typeof createSchemaRegistry>>;
+
 // Default delay in milliseconds before retrying after a failed offset resolution.
 // This prevents rapid retry loops that could overwhelm the Kafka broker
 const DEFAULT_ERROR_RETRY_DELAY_MS = 5000;
+
+const createSchemaRegistry = async (host: string) => {
+	const { SchemaRegistry } = await import('@kafkajs/confluent-schema-registry');
+
+	return new SchemaRegistry({ host });
+};
 
 export interface KafkaTriggerOptions {
 	allowAutoTopicCreation?: boolean;
@@ -279,13 +286,13 @@ export function disconnectEventListeners(
  * @param ctx - The trigger function context
  * @returns Schema registry instance or undefined if not configured
  */
-export function setSchemaRegistry(ctx: ITriggerFunctions) {
+export async function setSchemaRegistry(ctx: ITriggerFunctions) {
 	const useSchemaRegistry = ctx.getNodeParameter('useSchemaRegistry', 0) as boolean;
 
 	if (useSchemaRegistry) {
 		try {
 			const schemaRegistryUrl = ctx.getNodeParameter('schemaRegistryUrl', 0) as string;
-			return new SchemaRegistry({ host: schemaRegistryUrl });
+			return await createSchemaRegistry(schemaRegistryUrl);
 		} catch (error) {
 			ctx.logger.warn('Could not connect to Schema Registry', { error });
 		}

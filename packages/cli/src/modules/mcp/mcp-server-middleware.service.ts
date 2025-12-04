@@ -91,7 +91,7 @@ export class McpServerMiddlewareService {
 				return;
 			}
 
-			(req as AuthenticatedRequest).user = user;
+			(req as unknown as AuthenticatedRequest).user = user;
 
 			next();
 		};

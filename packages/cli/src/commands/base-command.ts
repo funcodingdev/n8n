@@ -2,13 +2,13 @@ import 'reflect-metadata';
 import {
 	inDevelopment,
 	inTest,
-	LicenseState,
+	LicenseState as LicenseStateClass,
 	Logger,
 	ModuleRegistry,
 	ModulesConfig,
 } from '@n8n/backend-common';
 import { GlobalConfig } from '@n8n/config';
-import { LICENSE_FEATURES } from '@n8n/constants';
+import { LICENSE_FEATURES, LICENSE_QUOTAS, UNLIMITED_LICENSE_QUOTA } from '@n8n/constants';
 import { DbConnection } from '@n8n/db';
 import { Container } from '@n8n/di';
 import {
@@ -289,7 +289,9 @@ export abstract class BaseCommand<F = never> {
 		this.license = Container.get(License);
 		await this.license.init();
 
-		Container.get(LicenseState).setLicenseProvider(this.license);
+		this.initEnterpriseMock();
+
+		Container.get(LicenseStateClass).setLicenseProvider(this.license);
 
 		const { activationKey } = this.globalConfig.license;
 
@@ -356,5 +358,84 @@ export abstract class BaseCommand<F = never> {
 
 			clearTimeout(forceShutdownTimer);
 		};
+	}
+
+	private initEnterpriseMock() {
+		try {
+			const license = this.license;
+			if (!license) {
+				return;
+			}
+
+			// Mock License object
+			const originalGetValue = license.getValue.bind(license);
+
+			license.isLicensed = (feature: any) => {
+				if (feature === 'feat:showNonProdBanner') {
+					return false;
+				}
+				return true;
+			};
+
+			license.getValue = (feature: any) => {
+				if (feature === 'planName') {
+					return 'Enterprise';
+				}
+				if (feature === LICENSE_QUOTAS.AI_CREDITS) {
+					return 999999;
+				}
+				if (feature === LICENSE_QUOTAS.INSIGHTS_MAX_HISTORY_DAYS) {
+					return 365;
+				}
+				if (feature === LICENSE_QUOTAS.INSIGHTS_RETENTION_MAX_AGE_DAYS) {
+					return 365;
+				}
+				if (feature === LICENSE_QUOTAS.INSIGHTS_RETENTION_PRUNE_INTERVAL_DAYS) {
+					return 7;
+				}
+				if (Object.values(LICENSE_QUOTAS).includes(feature)) {
+					return UNLIMITED_LICENSE_QUOTA;
+				}
+				if (Object.values(LICENSE_FEATURES).includes(feature)) {
+					return true;
+				}
+				return originalGetValue(feature);
+			};
+
+			const licenseAny = license as any;
+
+			// Keep special values explicit. The rest flow through the shared
+			// isLicensed()/getValue() overrides above so newly added features
+			// are automatically simulated as enterprise features.
+			licenseAny.isAPIDisabled = () => false;
+			licenseAny.getAiCredits = () => 999999;
+			licenseAny.getMaxAiCredits = () => 999999;
+			licenseAny.getPlanName = () => 'Enterprise';
+			licenseAny.getConsumerId = () => 'enterprise-mock-consumer';
+			licenseAny.getManagementJwt = () => 'mock-jwt-token';
+			licenseAny.getCurrentEntitlements = () => [];
+			licenseAny.getMainPlan = () => undefined;
+			licenseAny.getInfo = () => 'Enterprise Mock License';
+			licenseAny.enableAutoRenewals = () => {};
+			licenseAny.disableAutoRenewals = () => {};
+
+			// Mock LicenseState object
+			const licenseState = Container.get(LicenseStateClass);
+			const licenseStateAny = licenseState as any;
+
+			// Override methods whose enterprise simulation intentionally differs
+			// from the generic default values.
+			licenseStateAny.isAPIDisabled = () => false;
+			licenseStateAny.getMaxAiCredits = () => 999999;
+			licenseStateAny.getInsightsMaxHistory = () => 365;
+			licenseStateAny.getInsightsRetentionMaxAge = () => 365;
+			licenseStateAny.getInsightsRetentionPruneInterval = () => 7;
+
+			this.logger.info(
+				'[ENTERPRISE MOCK] ✅ All enterprise features enabled (License + LicenseState)',
+			);
+		} catch (error) {
+			this.logger.error('[ENTERPRISE MOCK] Failed to enable enterprise mock:', error);
+		}
 	}
 }

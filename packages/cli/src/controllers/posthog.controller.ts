@@ -7,7 +7,7 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 
 @RestController('/ph')
 export class PostHogController {
-	static routers = [
+	static routers: Array<{ path: string; router: Router; skipAuth: boolean }> = [
 		{
 			path: '/',
 			router: (() => {
