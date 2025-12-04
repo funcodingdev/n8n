@@ -1,7 +1,8 @@
 import type { Constructable } from '@n8n/di';
-import type { ZodObject, ZodTypeAny } from 'zod';
 
-type FlagsSchema = ZodObject<Record<string, ZodTypeAny>>;
+// Use any to work around Zod's complex and version-dependent type system
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type FlagsSchema = any;
 
 export type CommandOptions = {
 	name: string;
