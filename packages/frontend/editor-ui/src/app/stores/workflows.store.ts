@@ -253,16 +253,17 @@ export const useWorkflowsStore = defineStore(STORES.WORKFLOWS, () => {
 		}, {});
 	});
 
-	const nodesWithIssuesCount = computed(
-		() =>
-			workflow.value.nodes.filter((node) => {
-				const nodeHasIssues = Object.keys(node.issues ?? {}).length > 0;
-				const isConnected =
-					Object.keys(outgoingConnectionsByNodeName(node.name)).length > 0 ||
-					Object.keys(incomingConnectionsByNodeName(node.name)).length > 0;
-				return !node.disabled && isConnected && nodeHasIssues;
-			}).length,
+	const nodesWithIssues = computed(() =>
+		workflow.value.nodes.filter((node) => {
+			const nodeHasIssues = Object.keys(node.issues ?? {}).length > 0;
+			const isConnected =
+				Object.keys(outgoingConnectionsByNodeName(node.name)).length > 0 ||
+				Object.keys(incomingConnectionsByNodeName(node.name)).length > 0;
+			return !node.disabled && isConnected && nodeHasIssues;
+		}),
 	);
+
+	const nodesWithIssuesCount = computed(() => nodesWithIssues.value.length);
 
 	const nodesIssuesExist = computed(() => nodesWithIssuesCount.value > 0);
 
@@ -639,6 +640,7 @@ export const useWorkflowsStore = defineStore(STORES.WORKFLOWS, () => {
 			isArchived?: boolean;
 			parentFolderId?: string;
 			availableInMCP?: boolean;
+			triggerNodeType?: string;
 		} = {},
 		includeFolders = false,
 		onlySharedWithMe = false,
@@ -681,6 +683,7 @@ export const useWorkflowsStore = defineStore(STORES.WORKFLOWS, () => {
 		tags,
 		select,
 		isArchived,
+		triggerNodeType,
 	}: {
 		projectId?: string;
 		query?: string;
@@ -688,6 +691,7 @@ export const useWorkflowsStore = defineStore(STORES.WORKFLOWS, () => {
 		tags?: string[];
 		select?: string[];
 		isArchived?: boolean;
+		triggerNodeType?: string;
 	}): Promise<IWorkflowDb[]> {
 		const filter = {
 			projectId,
@@ -695,6 +699,7 @@ export const useWorkflowsStore = defineStore(STORES.WORKFLOWS, () => {
 			nodeTypes,
 			tags,
 			isArchived,
+			triggerNodeType,
 		};
 
 		// Check if filter has meaningful values (not just undefined, null, or empty arrays/strings)
@@ -746,6 +751,11 @@ export const useWorkflowsStore = defineStore(STORES.WORKFLOWS, () => {
 
 	function setWorkflowChecksum(checksum: string) {
 		workflowChecksum.value = checksum;
+	}
+
+	async function updateWorkflowChecksum() {
+		const checksum = await calculateWorkflowChecksum(workflow.value);
+		setWorkflowChecksum(checksum);
 	}
 
 	function setWorkflowActiveVersion(version: WorkflowHistory) {
@@ -898,21 +908,28 @@ export const useWorkflowsStore = defineStore(STORES.WORKFLOWS, () => {
 		};
 	}
 
-	function setWorkflowActive(targetWorkflowId: string, activeVersion?: WorkflowHistory) {
-		const index = activeWorkflows.value.indexOf(targetWorkflowId);
-		if (index === -1) {
+	function setWorkflowActive(
+		targetWorkflowId: string,
+		activeVersion: WorkflowHistory,
+		clearDirtyState: boolean = true,
+	) {
+		if (activeWorkflows.value.indexOf(targetWorkflowId) === -1) {
 			activeWorkflows.value.push(targetWorkflowId);
 		}
-		const targetWorkflow = workflowsById.value[targetWorkflowId];
-		if (targetWorkflow) {
-			targetWorkflow.active = true;
-			targetWorkflow.activeVersionId = activeVersion?.versionId ?? targetWorkflow.versionId;
-			targetWorkflow.activeVersion = activeVersion;
+
+		const cachedWorkflow = workflowsById.value[targetWorkflowId];
+		if (cachedWorkflow) {
+			cachedWorkflow.active = true;
+			cachedWorkflow.activeVersionId = activeVersion.versionId;
+			cachedWorkflow.activeVersion = activeVersion;
 		}
+
 		if (targetWorkflowId === workflow.value.id) {
-			uiStore.stateIsDirty = false;
+			if (clearDirtyState) {
+				uiStore.stateIsDirty = false;
+			}
 			workflow.value.active = true;
-			workflow.value.activeVersionId = activeVersion?.versionId ?? workflow.value.versionId;
+			workflow.value.activeVersionId = activeVersion.versionId;
 			workflow.value.activeVersion = activeVersion;
 		}
 	}
@@ -1973,6 +1990,7 @@ export const useWorkflowsStore = defineStore(STORES.WORKFLOWS, () => {
 		canvasNames,
 		nodesByName,
 		nodesWithIssuesCount,
+		nodesWithIssues,
 		nodesIssuesExist,
 		workflowValidationIssues,
 		formatIssueMessage,
@@ -2016,6 +2034,7 @@ export const useWorkflowsStore = defineStore(STORES.WORKFLOWS, () => {
 		setUsedCredentials,
 		setWorkflowVersionId,
 		setWorkflowChecksum,
+		updateWorkflowChecksum,
 		setWorkflowActiveVersion,
 		replaceInvalidWorkflowCredentials,
 		assignCredentialToMatchingNodes,
