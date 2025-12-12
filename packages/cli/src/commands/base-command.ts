@@ -344,7 +344,6 @@ export abstract class BaseCommand<F = never> {
 					return UNLIMITED_LICENSE_QUOTA;
 				}
 				if (Object.values(LICENSE_FEATURES).includes(feature)) {
-					// console.log(`[ENTERPRISE MOCK] Feature ${feature} enabled`);
 					return true;
 				}
 				return originalGetValue(feature);
@@ -352,6 +351,7 @@ export abstract class BaseCommand<F = never> {
 
 			const licenseAny = license as any;
 
+			// Mock all license check methods
 			[
 				'isAdvancedPermissionsLicensed',
 				'isSharingEnabled',
@@ -367,6 +367,8 @@ export abstract class BaseCommand<F = never> {
 				'isDebugInEditorLicensed',
 				'isWorkerViewLicensed',
 				'isAiCreditsEnabled',
+				'isAiAssistantEnabled',
+				'isAskAiEnabled',
 				'isFoldersEnabled',
 				'isProjectRoleAdminLicensed',
 				'isProjectRoleEditorLicensed',
@@ -374,12 +376,12 @@ export abstract class BaseCommand<F = never> {
 				'isCustomNpmRegistryEnabled',
 				'isWithinUsersLimit',
 				'isApiKeyScopesEnabled',
-				'isAskAiEnabled',
 				'isAdvancedExecutionFiltersEnabled',
 			].forEach((key) => {
 				licenseAny[key] = () => true;
 			});
 
+			// Mock all quota/limit methods
 			[
 				'getUsersLimit',
 				'getTriggerLimit',
@@ -390,8 +392,8 @@ export abstract class BaseCommand<F = never> {
 				licenseAny[key] = () => UNLIMITED_LICENSE_QUOTA;
 			});
 
+			// Mock special methods
 			licenseAny.isAPIDisabled = () => false;
-			licenseAny.isAiAssistantEnabled = () => true;
 			licenseAny.getAiCredits = () => 999999;
 			licenseAny.getPlanName = () => 'Enterprise';
 			licenseAny.getConsumerId = () => 'enterprise-mock-consumer';
@@ -400,6 +402,7 @@ export abstract class BaseCommand<F = never> {
 			licenseAny.getMainPlan = () => undefined;
 			licenseAny.getInfo = () => 'Enterprise Mock License';
 			licenseAny.enableAutoRenewals = () => {};
+			licenseAny.disableAutoRenewals = () => {};
 
 			this.logger.info('[ENTERPRISE MOCK] ✅ All enterprise features enabled');
 		} catch (error) {
