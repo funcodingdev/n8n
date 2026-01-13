@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import {
 	inDevelopment,
 	inTest,
-	LicenseState,
+	LicenseState as LicenseStateClass,
 	Logger,
 	ModuleRegistry,
 	ModulesConfig,
@@ -249,7 +249,7 @@ export abstract class BaseCommand<F = never> {
 
 		this.initEnterpriseMock();
 
-		Container.get(LicenseState).setLicenseProvider(this.license);
+		Container.get(LicenseStateClass).setLicenseProvider(this.license);
 
 		const { activationKey } = this.globalConfig.license;
 
@@ -325,6 +325,7 @@ export abstract class BaseCommand<F = never> {
 				return;
 			}
 
+			// Mock License object
 			const originalGetValue = license.getValue.bind(license);
 
 			license.isLicensed = (feature: any) => {
@@ -421,7 +422,76 @@ export abstract class BaseCommand<F = never> {
 			licenseAny.enableAutoRenewals = () => {};
 			licenseAny.disableAutoRenewals = () => {};
 
-			this.logger.info('[ENTERPRISE MOCK] ✅ All enterprise features enabled');
+			// Mock LicenseState object
+			const licenseState = Container.get(LicenseStateClass);
+			const licenseStateAny = licenseState as any;
+
+			// Mock all isLicensed methods in LicenseState
+			[
+				'isCustomRolesLicensed',
+				'isDynamicCredentialsLicensed',
+				'isSharingLicensed',
+				'isLogStreamingLicensed',
+				'isLdapLicensed',
+				'isSamlLicensed',
+				'isOidcLicensed',
+				'isMFAEnforcementLicensed',
+				'isApiKeyScopesLicensed',
+				'isAiAssistantLicensed',
+				'isAskAiLicensed',
+				'isAiCreditsLicensed',
+				'isAdvancedExecutionFiltersLicensed',
+				'isAdvancedPermissionsLicensed',
+				'isDebugInEditorLicensed',
+				'isBinaryDataS3Licensed',
+				'isMultiMainLicensed',
+				'isVariablesLicensed',
+				'isSourceControlLicensed',
+				'isExternalSecretsLicensed',
+				'isAPIDisabled',
+				'isWorkerViewLicensed',
+				'isProjectRoleAdminLicensed',
+				'isProjectRoleEditorLicensed',
+				'isProjectRoleViewerLicensed',
+				'isCustomNpmRegistryLicensed',
+				'isFoldersLicensed',
+				'isInsightsSummaryLicensed',
+				'isInsightsDashboardLicensed',
+				'isInsightsHourlyDataLicensed',
+				'isWorkflowDiffsLicensed',
+				'isProvisioningLicensed',
+			].forEach((key) => {
+				licenseStateAny[key] = () => true;
+			});
+
+			// Override isAPIDisabled to return false
+			licenseStateAny.isAPIDisabled = () => false;
+
+			// Mock all quota/limit methods in LicenseState
+			[
+				'getMaxUsers',
+				'getMaxActiveWorkflows',
+				'getMaxVariables',
+				'getMaxAiCredits',
+				'getWorkflowHistoryPruneQuota',
+				'getInsightsMaxHistory',
+				'getInsightsRetentionMaxAge',
+				'getInsightsRetentionPruneInterval',
+				'getMaxTeamProjects',
+				'getMaxWorkflowsWithEvaluations',
+			].forEach((key) => {
+				licenseStateAny[key] = () => UNLIMITED_LICENSE_QUOTA;
+			});
+
+			// Override specific quota methods
+			licenseStateAny.getMaxAiCredits = () => 999999;
+			licenseStateAny.getInsightsMaxHistory = () => 365;
+			licenseStateAny.getInsightsRetentionMaxAge = () => 365;
+			licenseStateAny.getInsightsRetentionPruneInterval = () => 7;
+
+			this.logger.info(
+				'[ENTERPRISE MOCK] ✅ All enterprise features enabled (License + LicenseState)',
+			);
 		} catch (error) {
 			this.logger.error('[ENTERPRISE MOCK] Failed to enable enterprise mock:', error);
 		}
