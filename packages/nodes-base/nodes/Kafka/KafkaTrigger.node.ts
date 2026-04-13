@@ -383,7 +383,7 @@ export class KafkaTrigger implements INodeType {
 
 		const config = await createConfig(this);
 		const kafka = new apacheKafka(config);
-		const registry = setSchemaRegistry(this);
+		const registry = await setSchemaRegistry(this);
 
 		const options = this.getNodeParameter('options', {}) as KafkaTriggerOptions;
 		if (options.keepBinaryData && nodeVersion < 1.2) {

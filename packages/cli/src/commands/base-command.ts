@@ -367,6 +367,18 @@ export abstract class BaseCommand<F = never> {
 				if (feature === 'planName') {
 					return 'Enterprise';
 				}
+				if (feature === LICENSE_QUOTAS.AI_CREDITS) {
+					return 999999;
+				}
+				if (feature === LICENSE_QUOTAS.INSIGHTS_MAX_HISTORY_DAYS) {
+					return 365;
+				}
+				if (feature === LICENSE_QUOTAS.INSIGHTS_RETENTION_MAX_AGE_DAYS) {
+					return 365;
+				}
+				if (feature === LICENSE_QUOTAS.INSIGHTS_RETENTION_PRUNE_INTERVAL_DAYS) {
+					return 7;
+				}
 				if (Object.values(LICENSE_QUOTAS).includes(feature)) {
 					return UNLIMITED_LICENSE_QUOTA;
 				}
@@ -378,66 +390,9 @@ export abstract class BaseCommand<F = never> {
 
 			const licenseAny = license as any;
 
-			// Mock all license check methods
-			[
-				'isAdvancedPermissionsLicensed',
-				'isSharingEnabled',
-				'isLdapEnabled',
-				'isSamlEnabled',
-				'isOidcEnabled',
-				'isMFAEnforcementLicensed',
-				'isSourceControlLicensed',
-				'isVariablesEnabled',
-				'isExternalSecretsEnabled',
-				'isLogStreamingEnabled',
-				'isMultiMainLicensed',
-				'isBinaryDataS3Licensed',
-				'isDebugInEditorLicensed',
-				'isWorkerViewLicensed',
-				'isAiCreditsEnabled',
-				'isAiAssistantEnabled',
-				'isAskAiEnabled',
-				'isAiBuilderEnabled',
-				'isFoldersEnabled',
-				'isProjectRoleAdminLicensed',
-				'isProjectRoleEditorLicensed',
-				'isProjectRoleViewerLicensed',
-				'isCustomNpmRegistryEnabled',
-				'isCustomRolesLicensed',
-				'isWithinUsersLimit',
-				'isApiKeyScopesEnabled',
-				'isAdvancedExecutionFiltersEnabled',
-				'isInsightsSummaryLicensed',
-				'isInsightsDashboardLicensed',
-				'isInsightsHourlyDataLicensed',
-				'isWorkflowDiffsLicensed',
-				'isProvisioningLicensed',
-				'isDynamicCredentialsEnabled',
-			].forEach((key) => {
-				licenseAny[key] = () => true;
-			});
-
-			// Mock all quota/limit methods
-			[
-				'getUsersLimit',
-				'getTriggerLimit',
-				'getVariablesLimit',
-				'getWorkflowHistoryPruneLimit',
-				'getTeamProjectLimit',
-				'getMaxUsers',
-				'getMaxActiveWorkflows',
-				'getMaxVariables',
-				'getWorkflowHistoryPruneQuota',
-				'getMaxTeamProjects',
-				'getMaxWorkflowsWithEvaluations',
-				'getInsightsMaxHistory',
-				'getInsightsRetentionMaxAge',
-				'getInsightsRetentionPruneInterval',
-			].forEach((key) => {
-				licenseAny[key] = () => UNLIMITED_LICENSE_QUOTA;
-			});
-
-			// Mock special methods
+			// Keep special values explicit. The rest flow through the shared
+			// isLicensed()/getValue() overrides above so newly added features
+			// are automatically simulated as enterprise features.
 			licenseAny.isAPIDisabled = () => false;
 			licenseAny.getAiCredits = () => 999999;
 			licenseAny.getMaxAiCredits = () => 999999;
@@ -454,65 +409,9 @@ export abstract class BaseCommand<F = never> {
 			const licenseState = Container.get(LicenseStateClass);
 			const licenseStateAny = licenseState as any;
 
-			// Mock all isLicensed methods in LicenseState
-			[
-				'isCustomRolesLicensed',
-				'isDynamicCredentialsLicensed',
-				'isPersonalSpacePolicyLicensed',
-				'isSharingLicensed',
-				'isLogStreamingLicensed',
-				'isLdapLicensed',
-				'isSamlLicensed',
-				'isOidcLicensed',
-				'isMFAEnforcementLicensed',
-				'isApiKeyScopesLicensed',
-				'isAiAssistantLicensed',
-				'isAskAiLicensed',
-				'isAiCreditsLicensed',
-				'isAdvancedExecutionFiltersLicensed',
-				'isAdvancedPermissionsLicensed',
-				'isDebugInEditorLicensed',
-				'isBinaryDataS3Licensed',
-				'isMultiMainLicensed',
-				'isVariablesLicensed',
-				'isSourceControlLicensed',
-				'isExternalSecretsLicensed',
-				'isAPIDisabled',
-				'isWorkerViewLicensed',
-				'isProjectRoleAdminLicensed',
-				'isProjectRoleEditorLicensed',
-				'isProjectRoleViewerLicensed',
-				'isCustomNpmRegistryLicensed',
-				'isFoldersLicensed',
-				'isInsightsSummaryLicensed',
-				'isInsightsDashboardLicensed',
-				'isInsightsHourlyDataLicensed',
-				'isWorkflowDiffsLicensed',
-				'isProvisioningLicensed',
-			].forEach((key) => {
-				licenseStateAny[key] = () => true;
-			});
-
-			// Override isAPIDisabled to return false
+			// Override methods whose enterprise simulation intentionally differs
+			// from the generic default values.
 			licenseStateAny.isAPIDisabled = () => false;
-
-			// Mock all quota/limit methods in LicenseState
-			[
-				'getMaxUsers',
-				'getMaxActiveWorkflows',
-				'getMaxVariables',
-				'getMaxAiCredits',
-				'getWorkflowHistoryPruneQuota',
-				'getInsightsMaxHistory',
-				'getInsightsRetentionMaxAge',
-				'getInsightsRetentionPruneInterval',
-				'getMaxTeamProjects',
-				'getMaxWorkflowsWithEvaluations',
-			].forEach((key) => {
-				licenseStateAny[key] = () => UNLIMITED_LICENSE_QUOTA;
-			});
-
-			// Override specific quota methods
 			licenseStateAny.getMaxAiCredits = () => 999999;
 			licenseStateAny.getInsightsMaxHistory = () => 365;
 			licenseStateAny.getInsightsRetentionMaxAge = () => 365;
