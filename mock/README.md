@@ -3,9 +3,10 @@
 如果你需要重新编译并应用修改后的 `base-command.js`，请按照以下步骤操作：
 
 ## 1. 准备工作
-确保你已经安装了 `pnpm`。如果没有，请运行：
+确保已安装仓库要求的 Node.js 和 pnpm 版本：
 ```bash
-npm install -g pnpm
+corepack enable
+corepack install
 ```
 
 ## 2. 安装依赖
@@ -15,14 +16,15 @@ pnpm install
 ```
 
 ## 3. 编译项目
-我们只需要编译 `n8n` 包。运行以下命令（使用 `npx` 调用 `turbo`）：
+我们只需要编译 `n8n` 包：
 ```bash
-npx turbo run build --filter=n8n
+pnpm --filter n8n build > build.log 2>&1
+tail -n 20 build.log
 ```
 *注意：编译过程可能需要几分钟。*
 
 ## 4. 拷贝产物
-编译完成后，将生成的 `base-command.js` 拷贝到 `tmp` 目录供 Docker 使用。
+编译完成后，将生成的 `base-command.js` 拷贝到 `mock` 目录供 Docker 使用。
 
 **Mac/Linux:**
 ```bash
@@ -43,7 +45,7 @@ docker run -it --rm --name n8n \
 	-p 5678:5678 \
 	-v n8n_data:/home/node/.n8n \
 	-v $(pwd)/mock/base-command.js:/usr/local/lib/node_modules/n8n/dist/commands/base-command.js \
-	docker.n8n.io/n8nio/n8n
+	docker.n8n.io/n8nio/n8n:2.34.4
 ```
 
 **Windows (PowerShell):**
@@ -53,5 +55,7 @@ docker run -it --rm --name n8n \
 	-p 5678:5678 \
 	-v n8n_data:/home/node/.n8n \
 	-v ${PWD}\mock\base-command.js:/usr/local/lib/node_modules/n8n/dist/commands/base-command.js \
-	docker.n8n.io/n8nio/n8n
+	docker.n8n.io/n8nio/n8n:2.34.4
 ```
+
+挂载文件必须由同一个 n8n 版本编译生成。升级镜像版本后，需要重新执行编译和拷贝步骤，不能继续使用旧版本的 `base-command.js`。

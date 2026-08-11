@@ -1,7 +1,4 @@
 import { Command } from '@n8n/decorators';
-import { Container } from '@n8n/di';
-
-import { License } from '@/license';
 
 import { BaseCommand } from '../base-command';
 
@@ -11,13 +8,10 @@ import { BaseCommand } from '../base-command';
 })
 export class ClearLicenseCommand extends BaseCommand {
 	async run() {
-		this.logger.info('Clearing license from database.');
-
-		// Attempt to invoke shutdown() to force any floating entitlements to be released
-		const license = Container.get(License);
-		await license.init({ isCli: true });
-		await license.clear();
-		this.logger.info('Done. Restart n8n to take effect.');
+		this.initLicense();
+		this.logger.info(
+			'Enterprise mock license is always enabled; there is no certificate to clear.',
+		);
 	}
 
 	async catch(error: Error) {

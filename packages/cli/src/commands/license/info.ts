@@ -1,7 +1,4 @@
 import { Command } from '@n8n/decorators';
-import { Container } from '@n8n/di';
-
-import { License } from '@/license';
 
 import { BaseCommand } from '../base-command';
 
@@ -11,11 +8,10 @@ import { BaseCommand } from '../base-command';
 })
 export class LicenseInfoCommand extends BaseCommand {
 	async run() {
-		const license = Container.get(License);
-		await license.init({ isCli: true });
+		this.initLicense();
 
-		// Write to stdout so output is independent of N8N_LOG_LEVEL.
-		process.stdout.write(license.getInfo() + '\n');
+		// 直接写入 stdout，确保输出不受 N8N_LOG_LEVEL 影响。
+		process.stdout.write(this.license.getInfo() + '\n');
 	}
 
 	async catch(error: Error) {
